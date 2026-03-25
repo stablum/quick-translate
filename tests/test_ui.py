@@ -42,6 +42,7 @@ class UiTests(unittest.TestCase):
             target_language="English",
             prompt_template_path=Path("prompt_template.txt").resolve(),
             database_path=Path("translations.db").resolve(),
+            log_path=Path("quick-translate.log").resolve(),
             window_width=360,
             window_height=200,
         )

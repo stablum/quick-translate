@@ -31,6 +31,7 @@ Quick Translate is a small Windows 11 overlay app for fast OpenAI-powered transl
 
 Press `Enter` in the input box to translate. Use `Shift+Enter` if you want a newline instead.
 Use the `x` control in the top-right corner to fully exit the app.
+If the app crashes or behaves unexpectedly, check `quick-translate.log` in the project folder.
 
 ## Config
 
@@ -39,6 +40,7 @@ Use the `x` control in the top-right corner to fully exit the app.
 - `[openai]`: `model`
 - `[translation]`: `source_language`, `target_language`, `template_path`
 - `[storage]`: `database_path`
+- `[logging]`: `path`
 - `[ui]`: `width`, `height`
 
 Relative paths are resolved from the folder containing `config.toml`.

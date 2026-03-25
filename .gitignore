@@ -3,4 +3,5 @@ __pycache__/
 *.pyc
 .env
 .tmp-tests/
+quick-translate.log*
 translations.db

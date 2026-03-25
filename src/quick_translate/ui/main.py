@@ -16,14 +16,19 @@ from PySide6.QtWidgets import (
 
 from quick_translate.config import AppConfig
 from quick_translate.database import TranslationRepository
+from quick_translate.logging_utils import get_logger
 from quick_translate.openai_client import TranslationService
 from quick_translate.ui.history import HistoryWindow
 from quick_translate.windows_effects import enable_blur
 
 
+logger = get_logger(__name__)
+
+
 class WorkerSignals(QObject):
     succeeded = Signal(str)
     failed = Signal(str)
+    finished = Signal()
 
 
 class TranslationTask(QRunnable):
@@ -37,9 +42,12 @@ class TranslationTask(QRunnable):
         try:
             translated_text = self._service.translate(self._text)
         except Exception as exc:  # pragma: no cover - UI thread handles display.
+            logger.exception("Translation task crashed")
             self.signals.failed.emit(str(exc))
-            return
-        self.signals.succeeded.emit(translated_text)
+        else:
+            self.signals.succeeded.emit(translated_text)
+        finally:
+            self.signals.finished.emit()
 
 
 class SubmitTextEdit(QPlainTextEdit):
@@ -105,6 +113,7 @@ class TranslatorWindow(QWidget):
         self._service = service
         self._thread_pool = QThreadPool.globalInstance()
         self._history_window: HistoryWindow | None = None
+        self._active_tasks: set[TranslationTask] = set()
         self._drag_origin: QPoint | None = None
         self._window_origin: QPoint | None = None
         self._positioned_once = False
@@ -242,6 +251,7 @@ class TranslatorWindow(QWidget):
 
     def showEvent(self, event) -> None:  # type: ignore[override]
         super().showEvent(event)
+        logger.info("Showing translator overlay")
         enable_blur(int(self.winId()))
         if not self._positioned_once:
             self._positioned_once = True
@@ -273,6 +283,9 @@ class TranslatorWindow(QWidget):
         self._source_edit.setFocus(Qt.FocusReason.OtherFocusReason)
         self._source_edit.selectAll()
 
+    def _release_task(self, task: TranslationTask) -> None:
+        self._active_tasks.discard(task)
+
     def _set_busy(self, is_busy: bool) -> None:
         self._source_edit.setReadOnly(is_busy)
         self._clear_button.setDisabled(is_busy)
@@ -286,8 +299,11 @@ class TranslatorWindow(QWidget):
         self._set_busy(True)
         self._result_edit.clear()
         self._select_source_text_for_replacement()
+        logger.info("Starting translation for %s characters", len(source_text))
 
         task = TranslationTask(self._service, source_text)
+        task.setAutoDelete(False)
+        self._active_tasks.add(task)
         task.signals.succeeded.connect(
             lambda translated_text, original_text=source_text: self._handle_success(
                 original_text,
@@ -295,6 +311,7 @@ class TranslatorWindow(QWidget):
             )
         )
         task.signals.failed.connect(self._handle_failure)
+        task.signals.finished.connect(lambda task=task: self._release_task(task))
         self._thread_pool.start(task)
 
     def _handle_success(self, source_text: str, translated_text: str) -> None:
@@ -302,6 +319,7 @@ class TranslatorWindow(QWidget):
         self._repository.save_translation(source_text, translated_text)
         self._set_busy(False)
         self._select_source_text_for_replacement()
+        logger.info("Saved translation to history")
 
         if self._history_window is not None:
             self._history_window.load_records(self._repository.list_translations())
@@ -310,18 +328,22 @@ class TranslatorWindow(QWidget):
         self._result_edit.setPlainText(message)
         self._set_busy(False)
         self._select_source_text_for_replacement()
+        logger.error("Translation failed: %s", message)
 
     def _show_history(self) -> None:
         if self._history_window is None:
             self._history_window = HistoryWindow()
 
+        logger.info("Opening translation history window")
         self._history_window.load_records(self._repository.list_translations())
         self._history_window.show()
         self._history_window.raise_()
         self._history_window.activateWindow()
 
     def closeEvent(self, event: QCloseEvent) -> None:  # type: ignore[override]
+        logger.info("Closing translator overlay")
         self._thread_pool.clear()
+        self._active_tasks.clear()
         if self._history_window is not None:
             self._history_window.close()
             self._history_window.deleteLater()

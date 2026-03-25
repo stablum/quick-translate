@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from quick_translate.config import AppConfig
+from quick_translate.logging_utils import get_logger
 from quick_translate.prompting import render_prompt
 
 from openai import OpenAI
@@ -10,12 +11,20 @@ class TranslationError(RuntimeError):
     """Raised when translation fails."""
 
 
+logger = get_logger(__name__)
+
+
 class TranslationService:
     def __init__(self, config: AppConfig) -> None:
         self._config = config
         self._client = OpenAI(api_key=config.openai_api_key)
 
     def translate(self, text: str) -> str:
+        logger.info(
+            "Sending translation request using model %s for %s characters",
+            self._config.model,
+            len(text),
+        )
         prompt = render_prompt(
             template_path=self._config.prompt_template_path,
             text=text,
@@ -30,6 +39,7 @@ class TranslationService:
         translated_text = self._extract_text(response).strip()
         if not translated_text:
             raise TranslationError("OpenAI returned an empty translation.")
+        logger.info("Received translation with %s characters", len(translated_text))
         return translated_text
 
     @staticmethod
@@ -46,4 +56,3 @@ class TranslationService:
                     if text:
                         chunks.append(str(text))
         return "".join(chunks)
-

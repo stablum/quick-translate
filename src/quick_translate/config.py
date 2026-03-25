@@ -19,6 +19,7 @@ class AppConfig:
     target_language: str
     prompt_template_path: Path
     database_path: Path
+    log_path: Path
     window_width: int
     window_height: int
 
@@ -65,6 +66,7 @@ def load_config(config_path: Path) -> AppConfig:
     openai_data = data.get("openai", {})
     translation_data = data.get("translation", {})
     storage_data = data.get("storage", {})
+    logging_data = data.get("logging", {})
     ui_data = data.get("ui", {})
 
     api_key = os.environ.get("OPENAI_API_KEY") or str(openai_data.get("api_key", "")).strip()
@@ -82,6 +84,10 @@ def load_config(config_path: Path) -> AppConfig:
         base_dir,
         str(storage_data.get("database_path", "translations.db")),
     )
+    log_path = _resolve_path(
+        base_dir,
+        str(logging_data.get("path", "quick-translate.log")),
+    )
 
     return AppConfig(
         config_path=config_path.resolve(),
@@ -95,6 +101,7 @@ def load_config(config_path: Path) -> AppConfig:
         or "English",
         prompt_template_path=prompt_template_path,
         database_path=database_path,
-        window_width=int(ui_data.get("width", 440)),
-        window_height=int(ui_data.get("height", 320)),
+        log_path=log_path,
+        window_width=int(ui_data.get("width", 360)),
+        window_height=int(ui_data.get("height", 200)),
     )

@@ -2,6 +2,11 @@ from __future__ import annotations
 
 import sys
 
+from quick_translate.logging_utils import get_logger
+
+
+logger = get_logger(__name__)
+
 
 if sys.platform == "win32":
     from ctypes import Structure, addressof, byref, c_int, c_uint, c_void_p, sizeof, windll
@@ -37,6 +42,13 @@ if sys.platform == "win32":
     WCA_ACCENT_POLICY = 19
     DWMWA_SYSTEMBACKDROP_TYPE = 38
     DWMSBT_TRANSIENTWINDOW = 3
+
+    windll.user32.SetWindowCompositionAttribute.argtypes = [c_void_p, c_void_p]
+    windll.user32.SetWindowCompositionAttribute.restype = c_int
+    windll.dwmapi.DwmExtendFrameIntoClientArea.argtypes = [c_void_p, c_void_p]
+    windll.dwmapi.DwmExtendFrameIntoClientArea.restype = c_int
+    windll.dwmapi.DwmSetWindowAttribute.argtypes = [c_void_p, c_uint, c_void_p, c_uint]
+    windll.dwmapi.DwmSetWindowAttribute.restype = c_int
 
 
 def _set_accent(hwnd: int, accent_state: int, gradient_color: int) -> bool:
@@ -82,10 +94,11 @@ def enable_blur(hwnd: int) -> None:
             gradient_color=0x18FFFFFF,
         )
         if not applied:
+            logger.warning("Host backdrop blur was unavailable, falling back to acrylic blur")
             _set_accent(
                 hwnd=hwnd,
                 accent_state=ACCENT_ENABLE_ACRYLICBLURBEHIND,
                 gradient_color=0x24FFFFFF,
             )
     except (AttributeError, OSError):
-        pass
+        logger.exception("Failed to apply Windows blur effects")

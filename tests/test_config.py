@@ -30,6 +30,9 @@ class ConfigTests(unittest.TestCase):
                     [storage]
                     database_path = "data/history.db"
 
+                    [logging]
+                    path = "logs/app.log"
+
                     [ui]
                     width = 480
                     height = 360
@@ -52,6 +55,7 @@ class ConfigTests(unittest.TestCase):
             self.assertEqual(config.model, "gpt-test")
             self.assertEqual(config.prompt_template_path, (config_path.parent / "templates/prompt.txt").resolve())
             self.assertEqual(config.database_path, (config_path.parent / "data/history.db").resolve())
+            self.assertEqual(config.log_path, (config_path.parent / "logs/app.log").resolve())
             self.assertEqual(config.window_width, 480)
             self.assertEqual(config.window_height, 360)
 
