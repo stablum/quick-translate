@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QObject, QPoint, QRunnable, Qt, QThreadPool, Signal
-from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen
+from PySide6.QtGui import QCloseEvent, QColor, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
+    QApplication,
     QFrame,
     QGraphicsDropShadowEffect,
     QHBoxLayout,
@@ -144,13 +145,13 @@ class TranslatorWindow(QWidget):
 
         self._clear_button = self._make_icon_button("⌫", "Clear")
         self._history_button = self._make_icon_button("🕘", "History")
-        close_button = self._make_icon_button("✕", "Close")
-        close_button.clicked.connect(self.close)
+        self._close_button = self._make_icon_button("x", "Exit")
+        self._close_button.clicked.connect(self._request_exit)
         self._history_button.clicked.connect(self._show_history)
         self._clear_button.clicked.connect(self._clear_text)
         handle_layout.addWidget(self._clear_button)
         handle_layout.addWidget(self._history_button)
-        handle_layout.addWidget(close_button)
+        handle_layout.addWidget(self._close_button)
 
         self._source_edit = SubmitTextEdit()
         self._source_edit.setObjectName("sourceEdit")
@@ -233,6 +234,12 @@ class TranslatorWindow(QWidget):
         button.setCursor(Qt.CursorShape.PointingHandCursor)
         return button
 
+    def _request_exit(self) -> None:
+        self.close()
+        app = QApplication.instance()
+        if app is not None:
+            app.quit()
+
     def showEvent(self, event) -> None:  # type: ignore[override]
         super().showEvent(event)
         enable_blur(int(self.winId()))
@@ -265,6 +272,7 @@ class TranslatorWindow(QWidget):
     def _set_busy(self, is_busy: bool) -> None:
         self._source_edit.setReadOnly(is_busy)
         self._clear_button.setDisabled(is_busy)
+        self._close_button.setDisabled(False)
 
     def _start_translation(self) -> None:
         source_text = self._source_edit.toPlainText().strip()
@@ -304,3 +312,11 @@ class TranslatorWindow(QWidget):
         self._history_window.show()
         self._history_window.raise_()
         self._history_window.activateWindow()
+
+    def closeEvent(self, event: QCloseEvent) -> None:  # type: ignore[override]
+        self._thread_pool.clear()
+        if self._history_window is not None:
+            self._history_window.close()
+            self._history_window.deleteLater()
+            self._history_window = None
+        super().closeEvent(event)

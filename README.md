@@ -30,6 +30,7 @@ Quick Translate is a small Windows 11 overlay app for fast OpenAI-powered transl
    ```
 
 Press `Enter` in the input box to translate. Use `Shift+Enter` if you want a newline instead.
+Use the `x` control in the top-right corner to fully exit the app.
 
 ## Config
 
