@@ -67,6 +67,10 @@ class SubmitTextEdit(QPlainTextEdit):
 
 
 class FrostedPanel(QFrame):
+    def __init__(self, surface_opacity: float) -> None:
+        super().__init__()
+        self._surface_opacity = surface_opacity
+
     def paintEvent(self, event) -> None:  # type: ignore[override]
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
@@ -75,8 +79,10 @@ class FrostedPanel(QFrame):
         path = QPainterPath()
         path.addRoundedRect(rect, 18, 18)
 
-        painter.fillPath(path, QColor(248, 251, 255, 34))
-        painter.setPen(QPen(QColor(255, 255, 255, 72), 1))
+        fill_alpha = max(0, min(255, round(255 * self._surface_opacity)))
+        border_alpha = max(fill_alpha, min(255, round(255 * min(1.0, self._surface_opacity + 0.15))))
+        painter.fillPath(path, QColor(248, 251, 255, fill_alpha))
+        painter.setPen(QPen(QColor(255, 255, 255, border_alpha), 1))
         painter.drawPath(path)
 
 
@@ -117,6 +123,7 @@ class TranslatorWindow(QWidget):
         self._drag_origin: QPoint | None = None
         self._window_origin: QPoint | None = None
         self._positioned_once = False
+        self._surface_opacity = self._config.surface_opacity
 
         self.setWindowTitle("Quick Translate")
         self.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
@@ -125,7 +132,6 @@ class TranslatorWindow(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
         self.setAutoFillBackground(False)
-        self.setWindowOpacity(0.9)
         self.resize(self._config.window_width, self._config.window_height)
 
         self._build_ui()
@@ -134,7 +140,7 @@ class TranslatorWindow(QWidget):
         root_layout = QVBoxLayout(self)
         root_layout.setContentsMargins(10, 10, 10, 10)
 
-        panel = FrostedPanel()
+        panel = FrostedPanel(self._surface_opacity)
         panel.setObjectName("panel")
         panel.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         panel.setAutoFillBackground(False)
@@ -142,10 +148,16 @@ class TranslatorWindow(QWidget):
         panel_layout.setContentsMargins(12, 10, 12, 12)
         panel_layout.setSpacing(8)
 
+        input_background_alpha = max(0, min(255, round(255 * self._surface_opacity * 0.35)))
+        input_border_alpha = max(0, min(255, round(255 * min(1.0, self._surface_opacity * 0.8))))
+        result_background_alpha = max(0, min(255, round(255 * self._surface_opacity * 0.22)))
+        hover_background_alpha = max(0, min(255, round(255 * self._surface_opacity * 0.5)))
+        shadow_alpha = max(0, min(255, round(255 * min(0.25, 0.08 + (self._surface_opacity * 0.5)))))
+
         shadow = QGraphicsDropShadowEffect(self)
         shadow.setBlurRadius(36)
         shadow.setOffset(0, 10)
-        shadow.setColor(QColor(0, 0, 0, 44))
+        shadow.setColor(QColor(0, 0, 0, shadow_alpha))
         panel.setGraphicsEffect(shadow)
 
         handle = DragHandle()
@@ -199,7 +211,7 @@ class TranslatorWindow(QWidget):
             """
             QWidget {
                 background: transparent;
-                color: rgba(24, 28, 34, 230);
+                color: rgb(24, 28, 34);
                 font-size: 12px;
                 font-family: "Segoe UI";
             }
@@ -210,20 +222,20 @@ class TranslatorWindow(QWidget):
                 background: transparent;
             }
             QPlainTextEdit {
-                background-color: rgba(255, 255, 255, 12);
-                border: 1px solid rgba(255, 255, 255, 28);
+                background-color: rgba(255, 255, 255, %d);
+                border: 1px solid rgba(255, 255, 255, %d);
                 border-radius: 12px;
                 padding: 8px 10px;
                 selection-background-color: rgba(100, 145, 255, 92);
             }
             QPlainTextEdit#resultEdit {
-                background-color: rgba(255, 255, 255, 8);
+                background-color: rgba(255, 255, 255, %d);
             }
             QToolButton {
                 background-color: transparent;
                 border: none;
                 border-radius: 10px;
-                color: rgba(24, 28, 34, 210);
+                color: rgb(24, 28, 34);
                 font-size: 14px;
                 font-family: "Segoe UI Emoji", "Segoe UI Symbol", "Segoe UI";
                 min-width: 28px;
@@ -231,12 +243,18 @@ class TranslatorWindow(QWidget):
                 padding: 0;
             }
             QToolButton:hover {
-                background-color: rgba(255, 255, 255, 18);
+                background-color: rgba(255, 255, 255, %d);
             }
             QToolButton:disabled {
                 color: rgba(24, 28, 34, 90);
             }
             """
+            % (
+                input_background_alpha,
+                input_border_alpha,
+                result_background_alpha,
+                hover_background_alpha,
+            )
         )
 
     def _make_icon_button(self, text: str, tooltip: str) -> QToolButton:

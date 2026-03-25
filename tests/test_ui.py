@@ -45,6 +45,7 @@ class UiTests(unittest.TestCase):
             log_path=Path("quick-translate.log").resolve(),
             window_width=360,
             window_height=200,
+            surface_opacity=0.14,
         )
 
     def test_close_button_uses_plain_x(self) -> None:

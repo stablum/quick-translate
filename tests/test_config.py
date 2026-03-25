@@ -36,6 +36,7 @@ class ConfigTests(unittest.TestCase):
                     [ui]
                     width = 480
                     height = 360
+                    surface_opacity = 0.33
                     """
                 ).strip(),
                 encoding="utf-8",
@@ -58,6 +59,7 @@ class ConfigTests(unittest.TestCase):
             self.assertEqual(config.log_path, (config_path.parent / "logs/app.log").resolve())
             self.assertEqual(config.window_width, 480)
             self.assertEqual(config.window_height, 360)
+            self.assertEqual(config.surface_opacity, 0.33)
 
     def test_dotenv_key_is_loaded(self) -> None:
         with workspace_temp_dir() as temp_dir:
@@ -82,6 +84,7 @@ class ConfigTests(unittest.TestCase):
                     os.environ["OPENAI_API_KEY"] = previous
 
             self.assertEqual(config.openai_api_key, "dotenv-key")
+            self.assertEqual(config.surface_opacity, 0.14)
 
     def test_env_var_still_overrides_dotenv(self) -> None:
         with workspace_temp_dir() as temp_dir:

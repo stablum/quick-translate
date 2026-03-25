@@ -15,4 +15,4 @@ path = "quick-translate.log"
 [ui]
 width = 360
 height = 200
-
+surface_opacity = 0.14

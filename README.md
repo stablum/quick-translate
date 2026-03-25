@@ -41,9 +41,10 @@ If the app crashes or behaves unexpectedly, check `quick-translate.log` in the p
 - `[translation]`: `source_language`, `target_language`, `template_path`
 - `[storage]`: `database_path`
 - `[logging]`: `path`
-- `[ui]`: `width`, `height`
+- `[ui]`: `width`, `height`, `surface_opacity`
 
 Relative paths are resolved from the folder containing `config.toml`.
+`surface_opacity` is a value from `0.0` to `1.0`; lower values make the glass more transparent, while text and icons stay opaque.
 
 ## Secrets
 

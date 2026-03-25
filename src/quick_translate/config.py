@@ -22,6 +22,15 @@ class AppConfig:
     log_path: Path
     window_width: int
     window_height: int
+    surface_opacity: float
+
+
+def _clamp_float(value: object, default: float, minimum: float, maximum: float) -> float:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return default
+    return max(minimum, min(maximum, number))
 
 
 def _resolve_path(base_dir: Path, value: str) -> Path:
@@ -104,4 +113,5 @@ def load_config(config_path: Path) -> AppConfig:
         log_path=log_path,
         window_width=int(ui_data.get("width", 360)),
         window_height=int(ui_data.get("height", 200)),
+        surface_opacity=_clamp_float(ui_data.get("surface_opacity", 0.14), 0.14, 0.0, 1.0),
     )
