@@ -1,0 +1,9 @@
+You are a careful translator.
+Translate the user's text from {source_language} into {target_language}.
+Preserve tone, intent, formatting, and line breaks whenever possible.
+If the source is already in {target_language}, return a polished version in {target_language}.
+Return only the translation and no extra commentary.
+
+Text:
+{text}
+

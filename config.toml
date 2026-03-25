@@ -1,0 +1,16 @@
+[openai]
+api_key = "replace-me-with-your-openai-api-key"
+model = "gpt-4.1-mini"
+
+[translation]
+source_language = "auto-detect"
+target_language = "English"
+template_path = "prompt_template.txt"
+
+[storage]
+database_path = "translations.db"
+
+[ui]
+width = 440
+height = 320
+
