@@ -75,8 +75,8 @@ class FrostedPanel(QFrame):
         path = QPainterPath()
         path.addRoundedRect(rect, 18, 18)
 
-        painter.fillPath(path, QColor(248, 251, 255, 78))
-        painter.setPen(QPen(QColor(255, 255, 255, 102), 1))
+        painter.fillPath(path, QColor(248, 251, 255, 34))
+        painter.setPen(QPen(QColor(255, 255, 255, 72), 1))
         painter.drawPath(path)
 
 
@@ -125,6 +125,7 @@ class TranslatorWindow(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
         self.setAutoFillBackground(False)
+        self.setWindowOpacity(0.9)
         self.resize(self._config.window_width, self._config.window_height)
 
         self._build_ui()
@@ -135,6 +136,8 @@ class TranslatorWindow(QWidget):
 
         panel = FrostedPanel()
         panel.setObjectName("panel")
+        panel.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        panel.setAutoFillBackground(False)
         panel_layout = QVBoxLayout(panel)
         panel_layout.setContentsMargins(12, 10, 12, 12)
         panel_layout.setSpacing(8)
@@ -142,7 +145,7 @@ class TranslatorWindow(QWidget):
         shadow = QGraphicsDropShadowEffect(self)
         shadow.setBlurRadius(36)
         shadow.setOffset(0, 10)
-        shadow.setColor(QColor(0, 0, 0, 70))
+        shadow.setColor(QColor(0, 0, 0, 44))
         panel.setGraphicsEffect(shadow)
 
         handle = DragHandle()
@@ -207,14 +210,14 @@ class TranslatorWindow(QWidget):
                 background: transparent;
             }
             QPlainTextEdit {
-                background-color: rgba(255, 255, 255, 28);
-                border: 1px solid rgba(255, 255, 255, 42);
+                background-color: rgba(255, 255, 255, 12);
+                border: 1px solid rgba(255, 255, 255, 28);
                 border-radius: 12px;
                 padding: 8px 10px;
                 selection-background-color: rgba(100, 145, 255, 92);
             }
             QPlainTextEdit#resultEdit {
-                background-color: rgba(255, 255, 255, 18);
+                background-color: rgba(255, 255, 255, 8);
             }
             QToolButton {
                 background-color: transparent;
@@ -228,7 +231,7 @@ class TranslatorWindow(QWidget):
                 padding: 0;
             }
             QToolButton:hover {
-                background-color: rgba(255, 255, 255, 36);
+                background-color: rgba(255, 255, 255, 18);
             }
             QToolButton:disabled {
                 color: rgba(24, 28, 34, 90);

@@ -1,6 +1,6 @@
 [project]
 name = "quick-translate"
-version = "0.1.6"
+version = "0.1.7"
 description = "A lightweight Windows 11 translation overlay backed by OpenAI."
 readme = "README.md"
 requires-python = ">=3.12"
