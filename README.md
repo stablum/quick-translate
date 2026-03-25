@@ -6,7 +6,8 @@ Quick Translate is a small Windows 11 overlay app for fast OpenAI-powered transl
 
 - Always-on-top floating translator box
 - Transparent, blurred Win11-style panel
-- OpenAI configuration through `config.toml`
+- OpenAI key loaded from a local `.env`
+- App configuration through `config.toml`
 - Prompt instructions loaded from `prompt_template.txt`
 - SQLite-backed translation history
 - Sortable, scrollable history window with source and translation columns
@@ -19,9 +20,10 @@ Quick Translate is a small Windows 11 overlay app for fast OpenAI-powered transl
    uv sync
    ```
 
-2. Edit `config.toml` and set your OpenAI API key.
-3. Adjust `prompt_template.txt` if you want different translation instructions.
-4. Start the app:
+2. Copy `.env.example` to `.env` and set `OPENAI_API_KEY`.
+3. Adjust `config.toml` if you want different model, languages, paths, or window size.
+4. Adjust `prompt_template.txt` if you want different translation instructions.
+5. Start the app:
 
    ```powershell
    uv run quick-translate
@@ -31,12 +33,16 @@ Quick Translate is a small Windows 11 overlay app for fast OpenAI-powered transl
 
 `config.toml` supports these sections:
 
-- `[openai]`: `api_key`, `model`
+- `[openai]`: `model`
 - `[translation]`: `source_language`, `target_language`, `template_path`
 - `[storage]`: `database_path`
 - `[ui]`: `width`, `height`
 
 Relative paths are resolved from the folder containing `config.toml`.
+
+## Secrets
+
+Place secrets in `.env`, which is ignored by git. The app automatically loads `.env` from the same folder as `config.toml`.
 
 ## Prompt Template
 
@@ -47,4 +53,3 @@ Relative paths are resolved from the folder containing `config.toml`.
 - `{text}`
 
 If you want literal braces in the template, escape them as `{{` and `}}`.
-

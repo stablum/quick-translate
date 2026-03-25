@@ -1,5 +1,4 @@
 [openai]
-api_key = "replace-me-with-your-openai-api-key"
 model = "gpt-4.1-mini"
 
 [translation]
@@ -13,4 +12,3 @@ database_path = "translations.db"
 [ui]
 width = 440
 height = 320
-

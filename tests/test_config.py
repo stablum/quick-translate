@@ -20,7 +20,6 @@ class ConfigTests(unittest.TestCase):
                 textwrap.dedent(
                     """
                     [openai]
-                    api_key = "test-key"
                     model = "gpt-test"
 
                     [translation]
@@ -38,8 +37,17 @@ class ConfigTests(unittest.TestCase):
                 ).strip(),
                 encoding="utf-8",
             )
+            (temp_dir / ".env").write_text("OPENAI_API_KEY=test-key\n", encoding="utf-8")
 
-            config = load_config(config_path)
+            previous = os.environ.get("OPENAI_API_KEY")
+            os.environ.pop("OPENAI_API_KEY", None)
+            try:
+                config = load_config(config_path)
+            finally:
+                if previous is None:
+                    os.environ.pop("OPENAI_API_KEY", None)
+                else:
+                    os.environ["OPENAI_API_KEY"] = previous
 
             self.assertEqual(config.model, "gpt-test")
             self.assertEqual(config.prompt_template_path, (config_path.parent / "templates/prompt.txt").resolve())
@@ -47,13 +55,35 @@ class ConfigTests(unittest.TestCase):
             self.assertEqual(config.window_width, 480)
             self.assertEqual(config.window_height, 360)
 
-    def test_env_key_overrides_placeholder(self) -> None:
+    def test_dotenv_key_is_loaded(self) -> None:
         with workspace_temp_dir() as temp_dir:
             config_path = temp_dir / "config.toml"
             config_path.write_text(
-                "[openai]\napi_key = \"replace-me-with-your-openai-api-key\"\n",
+                "[openai]\nmodel = \"gpt-4.1-mini\"\n",
                 encoding="utf-8",
             )
+            (temp_dir / ".env").write_text(
+                "OPENAI_API_KEY=dotenv-key\n",
+                encoding="utf-8",
+            )
+
+            previous = os.environ.get("OPENAI_API_KEY")
+            os.environ.pop("OPENAI_API_KEY", None)
+            try:
+                config = load_config(config_path)
+            finally:
+                if previous is None:
+                    os.environ.pop("OPENAI_API_KEY", None)
+                else:
+                    os.environ["OPENAI_API_KEY"] = previous
+
+            self.assertEqual(config.openai_api_key, "dotenv-key")
+
+    def test_env_var_still_overrides_dotenv(self) -> None:
+        with workspace_temp_dir() as temp_dir:
+            config_path = temp_dir / "config.toml"
+            config_path.write_text("[openai]\nmodel = \"gpt-4.1-mini\"\n", encoding="utf-8")
+            (temp_dir / ".env").write_text("OPENAI_API_KEY=dotenv-key\n", encoding="utf-8")
 
             previous = os.environ.get("OPENAI_API_KEY")
             os.environ["OPENAI_API_KEY"] = "env-key"
@@ -61,7 +91,7 @@ class ConfigTests(unittest.TestCase):
                 config = load_config(config_path)
             finally:
                 if previous is None:
-                    del os.environ["OPENAI_API_KEY"]
+                    os.environ.pop("OPENAI_API_KEY", None)
                 else:
                     os.environ["OPENAI_API_KEY"] = previous
 
@@ -70,7 +100,7 @@ class ConfigTests(unittest.TestCase):
     def test_missing_real_api_key_raises(self) -> None:
         with workspace_temp_dir() as temp_dir:
             config_path = temp_dir / "config.toml"
-            config_path.write_text("[openai]\napi_key = \"replace-me\"\n", encoding="utf-8")
+            config_path.write_text("[openai]\nmodel = \"gpt-4.1-mini\"\n", encoding="utf-8")
 
             previous = os.environ.pop("OPENAI_API_KEY", None)
             try:

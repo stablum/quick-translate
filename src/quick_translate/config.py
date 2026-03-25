@@ -30,9 +30,34 @@ def _resolve_path(base_dir: Path, value: str) -> Path:
     return (base_dir / path).resolve()
 
 
+def _load_dotenv(dotenv_path: Path) -> None:
+    if not dotenv_path.exists():
+        return
+
+    for raw_line in dotenv_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+
+        if not key or key in os.environ:
+            continue
+
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+            value = value[1:-1]
+
+        os.environ[key] = value
+
+
 def load_config(config_path: Path) -> AppConfig:
     if not config_path.exists():
         raise ConfigError(f"Configuration file not found: {config_path}")
+
+    base_dir = config_path.parent.resolve()
+    _load_dotenv(base_dir / ".env")
 
     with config_path.open("rb") as handle:
         data = tomllib.load(handle)
@@ -42,17 +67,13 @@ def load_config(config_path: Path) -> AppConfig:
     storage_data = data.get("storage", {})
     ui_data = data.get("ui", {})
 
-    api_key = (
-        os.environ.get("OPENAI_API_KEY")
-        or str(openai_data.get("api_key", "")).strip()
-    )
+    api_key = os.environ.get("OPENAI_API_KEY") or str(openai_data.get("api_key", "")).strip()
     if not api_key or api_key.startswith("replace-me"):
         raise ConfigError(
-            "Set a real OpenAI API key in config.toml [openai].api_key or "
-            "provide OPENAI_API_KEY."
+            "Set OPENAI_API_KEY in a local .env file or provide it as an "
+            "environment variable."
         )
 
-    base_dir = config_path.parent.resolve()
     prompt_template_path = _resolve_path(
         base_dir,
         str(translation_data.get("template_path", "prompt_template.txt")),
@@ -77,4 +98,3 @@ def load_config(config_path: Path) -> AppConfig:
         window_width=int(ui_data.get("width", 440)),
         window_height=int(ui_data.get("height", 320)),
     )
-
