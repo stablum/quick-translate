@@ -12,8 +12,14 @@ from quick_translate.openai_client import TranslationService
 from quick_translate.ui.main import TranslatorWindow
 
 
+def _runtime_root() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path.cwd()
+
+
 def _default_config_path() -> Path:
-    return Path.cwd() / "config.toml"
+    return _runtime_root() / "config.toml"
 
 
 def main() -> int:

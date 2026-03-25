@@ -3,5 +3,8 @@ __pycache__/
 *.pyc
 .env
 .tmp-tests/
+build/
+dist/
+quick-translate.spec
 quick-translate.log*
 translations.db

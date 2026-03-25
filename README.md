@@ -49,6 +49,24 @@ Relative paths are resolved from the folder containing `config.toml`.
 
 Place secrets in `.env`, which is ignored by git. The app automatically loads `.env` from the same folder as `config.toml`.
 
+## Packaging
+
+Build a Windows bundle that does not require Python:
+
+```powershell
+.\scripts\build-release.ps1
+```
+
+That script:
+
+- installs the dev build dependency (`PyInstaller`)
+- builds a windowed `quick-translate.exe`
+- copies `config.example.toml` into the bundle as `config.toml`
+- includes `prompt_template.txt`, `.env.example`, and `README.md`
+- creates `dist\quick-translate-<version>.zip`
+
+The packaged app resolves `config.toml` relative to the executable, so the zip can be unpacked and run on a machine without Python.
+
 ## Prompt Template
 
 `prompt_template.txt` is rendered with:
