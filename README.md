@@ -29,6 +29,8 @@ Quick Translate is a small Windows 11 overlay app for fast OpenAI-powered transl
    uv run quick-translate
    ```
 
+Press `Enter` in the input box to translate. Use `Shift+Enter` if you want a newline instead.
+
 ## Config
 
 `config.toml` supports these sections:

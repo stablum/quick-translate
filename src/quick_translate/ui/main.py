@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QObject, QPoint, QRunnable, Qt, QThreadPool, Signal
-from PySide6.QtGui import QFont, QKeySequence, QShortcut
+from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
     QFrame,
     QGraphicsDropShadowEffect,
     QHBoxLayout,
-    QLabel,
     QPlainTextEdit,
-    QPushButton,
     QSizePolicy,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -40,6 +39,36 @@ class TranslationTask(QRunnable):
             self.signals.failed.emit(str(exc))
             return
         self.signals.succeeded.emit(translated_text)
+
+
+class SubmitTextEdit(QPlainTextEdit):
+    submit_requested = Signal()
+
+    def keyPressEvent(self, event) -> None:  # type: ignore[override]
+        is_submit = event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter)
+        modifiers = event.modifiers()
+        if is_submit and not (modifiers & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier)):
+            if modifiers & Qt.KeyboardModifier.ShiftModifier:
+                super().keyPressEvent(event)
+            else:
+                event.accept()
+                self.submit_requested.emit()
+            return
+        super().keyPressEvent(event)
+
+
+class FrostedPanel(QFrame):
+    def paintEvent(self, event) -> None:  # type: ignore[override]
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+
+        rect = self.rect().adjusted(0, 0, -1, -1)
+        path = QPainterPath()
+        path.addRoundedRect(rect, 18, 18)
+
+        painter.fillPath(path, QColor(248, 251, 255, 78))
+        painter.setPen(QPen(QColor(255, 255, 255, 102), 1))
+        painter.drawPath(path)
 
 
 class DragHandle(QFrame):
@@ -84,133 +113,125 @@ class TranslatorWindow(QWidget):
         self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)
         self.setWindowFlag(Qt.WindowType.Tool, True)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
+        self.setAutoFillBackground(False)
         self.resize(self._config.window_width, self._config.window_height)
 
         self._build_ui()
 
     def _build_ui(self) -> None:
         root_layout = QVBoxLayout(self)
-        root_layout.setContentsMargins(12, 12, 12, 12)
+        root_layout.setContentsMargins(10, 10, 10, 10)
 
-        panel = QFrame()
+        panel = FrostedPanel()
         panel.setObjectName("panel")
         panel_layout = QVBoxLayout(panel)
-        panel_layout.setContentsMargins(16, 14, 16, 16)
-        panel_layout.setSpacing(10)
+        panel_layout.setContentsMargins(12, 10, 12, 12)
+        panel_layout.setSpacing(8)
 
         shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(32)
-        shadow.setOffset(0, 12)
-        shadow.setColor(Qt.GlobalColor.black)
+        shadow.setBlurRadius(36)
+        shadow.setOffset(0, 10)
+        shadow.setColor(QColor(0, 0, 0, 70))
         panel.setGraphicsEffect(shadow)
 
         handle = DragHandle()
         handle.setObjectName("handle")
+        handle.setFixedHeight(28)
         handle_layout = QHBoxLayout(handle)
         handle_layout.setContentsMargins(0, 0, 0, 0)
-
-        title_label = QLabel("Quick Translate")
-        title_font = QFont()
-        title_font.setPointSize(11)
-        title_font.setBold(True)
-        title_label.setFont(title_font)
-
-        target_label = QLabel(f"to {self._config.target_language}")
-        target_label.setObjectName("metaLabel")
-
-        handle_layout.addWidget(title_label)
-        handle_layout.addWidget(target_label)
         handle_layout.addStretch(1)
 
-        history_button = QPushButton("History")
-        close_button = QPushButton("Close")
+        self._clear_button = self._make_icon_button("⌫", "Clear")
+        self._history_button = self._make_icon_button("🕘", "History")
+        close_button = self._make_icon_button("✕", "Close")
         close_button.clicked.connect(self.close)
-        history_button.clicked.connect(self._show_history)
-        handle_layout.addWidget(history_button)
+        self._history_button.clicked.connect(self._show_history)
+        self._clear_button.clicked.connect(self._clear_text)
+        handle_layout.addWidget(self._clear_button)
+        handle_layout.addWidget(self._history_button)
         handle_layout.addWidget(close_button)
 
-        self._source_edit = QPlainTextEdit()
-        self._source_edit.setPlaceholderText("Enter text and press Ctrl+Enter")
+        self._source_edit = SubmitTextEdit()
+        self._source_edit.setObjectName("sourceEdit")
+        self._source_edit.setPlaceholderText("Type and press Enter")
         self._source_edit.setSizePolicy(
             QSizePolicy.Policy.Expanding,
             QSizePolicy.Policy.Expanding,
         )
-
-        self._translate_button = QPushButton("Translate")
-        clear_button = QPushButton("Clear")
-        clear_button.clicked.connect(self._clear_text)
-        self._translate_button.clicked.connect(self._start_translation)
-
-        actions_layout = QHBoxLayout()
-        actions_layout.addStretch(1)
-        actions_layout.addWidget(clear_button)
-        actions_layout.addWidget(self._translate_button)
+        self._source_edit.setMinimumHeight(56)
+        self._source_edit.setMaximumHeight(84)
+        self._source_edit.submit_requested.connect(self._start_translation)
 
         self._result_edit = QPlainTextEdit()
+        self._result_edit.setObjectName("resultEdit")
         self._result_edit.setReadOnly(True)
-        self._result_edit.setPlaceholderText("Translation appears here")
         self._result_edit.setSizePolicy(
             QSizePolicy.Policy.Expanding,
             QSizePolicy.Policy.Expanding,
         )
-
-        self._status_label = QLabel("Ready")
-        self._status_label.setObjectName("statusLabel")
+        self._result_edit.setMinimumHeight(56)
+        self._result_edit.setMaximumHeight(112)
 
         panel_layout.addWidget(handle)
         panel_layout.addWidget(self._source_edit, 1)
-        panel_layout.addLayout(actions_layout)
         panel_layout.addWidget(self._result_edit, 1)
-        panel_layout.addWidget(self._status_label)
         root_layout.addWidget(panel)
 
         handle.drag_started.connect(self._begin_drag)
         handle.drag_moved.connect(self._drag_to)
         handle.drag_released.connect(self._end_drag)
 
-        shortcut = QShortcut(QKeySequence("Ctrl+Return"), self)
-        shortcut.activated.connect(self._start_translation)
-
         self.setStyleSheet(
             """
             QWidget {
-                color: rgb(36, 40, 45);
-                font-size: 13px;
+                background: transparent;
+                color: rgba(24, 28, 34, 230);
+                font-size: 12px;
+                font-family: "Segoe UI";
             }
             QFrame#panel {
-                background-color: rgba(250, 252, 255, 170);
-                border: 1px solid rgba(255, 255, 255, 115);
-                border-radius: 20px;
+                border: none;
             }
             QFrame#handle {
                 background: transparent;
             }
-            QLabel#metaLabel, QLabel#statusLabel {
-                color: rgba(36, 40, 45, 170);
-            }
             QPlainTextEdit {
-                background-color: rgba(255, 255, 255, 110);
-                border: 1px solid rgba(255, 255, 255, 125);
-                border-radius: 14px;
-                padding: 10px;
-                selection-background-color: rgba(72, 128, 255, 110);
-            }
-            QPushButton {
-                background-color: rgba(255, 255, 255, 140);
-                border: 1px solid rgba(255, 255, 255, 125);
+                background-color: rgba(255, 255, 255, 28);
+                border: 1px solid rgba(255, 255, 255, 42);
                 border-radius: 12px;
-                min-height: 34px;
-                padding: 0 14px;
+                padding: 8px 10px;
+                selection-background-color: rgba(100, 145, 255, 92);
             }
-            QPushButton:hover {
-                background-color: rgba(255, 255, 255, 180);
+            QPlainTextEdit#resultEdit {
+                background-color: rgba(255, 255, 255, 18);
             }
-            QPushButton:disabled {
-                color: rgba(36, 40, 45, 110);
-                background-color: rgba(255, 255, 255, 90);
+            QToolButton {
+                background-color: transparent;
+                border: none;
+                border-radius: 10px;
+                color: rgba(24, 28, 34, 210);
+                font-size: 14px;
+                font-family: "Segoe UI Emoji", "Segoe UI Symbol", "Segoe UI";
+                min-width: 28px;
+                min-height: 28px;
+                padding: 0;
+            }
+            QToolButton:hover {
+                background-color: rgba(255, 255, 255, 36);
+            }
+            QToolButton:disabled {
+                color: rgba(24, 28, 34, 90);
             }
             """
         )
+
+    def _make_icon_button(self, text: str, tooltip: str) -> QToolButton:
+        button = QToolButton()
+        button.setText(text)
+        button.setToolTip(tooltip)
+        button.setCursor(Qt.CursorShape.PointingHandCursor)
+        return button
 
     def showEvent(self, event) -> None:  # type: ignore[override]
         super().showEvent(event)
@@ -220,8 +241,8 @@ class TranslatorWindow(QWidget):
             screen = self.screen()
             if screen is not None:
                 geometry = screen.availableGeometry()
-                x = geometry.right() - self.width() - 32
-                y = geometry.top() + 32
+                x = geometry.center().x() - (self.width() // 2)
+                y = geometry.bottom() - self.height() - 28
                 self.move(x, y)
 
     def _begin_drag(self, cursor_position: QPoint) -> None:
@@ -240,20 +261,18 @@ class TranslatorWindow(QWidget):
     def _clear_text(self) -> None:
         self._source_edit.clear()
         self._result_edit.clear()
-        self._status_label.setText("Ready")
 
     def _set_busy(self, is_busy: bool) -> None:
-        self._translate_button.setDisabled(is_busy)
-        self._source_edit.setDisabled(is_busy)
+        self._source_edit.setReadOnly(is_busy)
+        self._clear_button.setDisabled(is_busy)
 
     def _start_translation(self) -> None:
         source_text = self._source_edit.toPlainText().strip()
         if not source_text:
-            self._status_label.setText("Enter some text to translate.")
             return
 
         self._set_busy(True)
-        self._status_label.setText("Translating...")
+        self._result_edit.clear()
 
         task = TranslationTask(self._service, source_text)
         task.signals.succeeded.connect(
@@ -268,14 +287,13 @@ class TranslatorWindow(QWidget):
     def _handle_success(self, source_text: str, translated_text: str) -> None:
         self._result_edit.setPlainText(translated_text)
         self._repository.save_translation(source_text, translated_text)
-        self._status_label.setText("Saved to translation history.")
         self._set_busy(False)
 
         if self._history_window is not None:
             self._history_window.load_records(self._repository.list_translations())
 
     def _handle_failure(self, message: str) -> None:
-        self._status_label.setText(message)
+        self._result_edit.setPlainText(message)
         self._set_busy(False)
 
     def _show_history(self) -> None:

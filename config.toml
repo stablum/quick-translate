@@ -10,5 +10,5 @@ template_path = "prompt_template.txt"
 database_path = "translations.db"
 
 [ui]
-width = 440
-height = 320
+width = 360
+height = 200
