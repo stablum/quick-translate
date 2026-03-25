@@ -78,6 +78,22 @@ class UiTests(unittest.TestCase):
         self.assertIsNone(window._history_window)
         self.assertFalse(window.isVisible())
 
+    def test_submit_selects_entire_input_for_replacement(self) -> None:
+        window = TranslatorWindow(
+            config=self._config(),
+            repository=_DummyRepository(),
+            service=_DummyService(),
+        )
+        self.addCleanup(window.close)
+        window.show()
+        self.app.processEvents()
+
+        window._source_edit.setPlainText("replace me")
+        window._start_translation()
+        self.app.processEvents()
+
+        self.assertEqual(window._source_edit.textCursor().selectedText(), "replace me")
+
 
 if __name__ == "__main__":
     unittest.main()

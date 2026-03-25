@@ -269,6 +269,10 @@ class TranslatorWindow(QWidget):
         self._source_edit.clear()
         self._result_edit.clear()
 
+    def _select_source_text_for_replacement(self) -> None:
+        self._source_edit.setFocus(Qt.FocusReason.OtherFocusReason)
+        self._source_edit.selectAll()
+
     def _set_busy(self, is_busy: bool) -> None:
         self._source_edit.setReadOnly(is_busy)
         self._clear_button.setDisabled(is_busy)
@@ -281,6 +285,7 @@ class TranslatorWindow(QWidget):
 
         self._set_busy(True)
         self._result_edit.clear()
+        self._select_source_text_for_replacement()
 
         task = TranslationTask(self._service, source_text)
         task.signals.succeeded.connect(
@@ -296,6 +301,7 @@ class TranslatorWindow(QWidget):
         self._result_edit.setPlainText(translated_text)
         self._repository.save_translation(source_text, translated_text)
         self._set_busy(False)
+        self._select_source_text_for_replacement()
 
         if self._history_window is not None:
             self._history_window.load_records(self._repository.list_translations())
@@ -303,6 +309,7 @@ class TranslatorWindow(QWidget):
     def _handle_failure(self, message: str) -> None:
         self._result_edit.setPlainText(message)
         self._set_busy(False)
+        self._select_source_text_for_replacement()
 
     def _show_history(self) -> None:
         if self._history_window is None:
