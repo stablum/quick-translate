@@ -219,6 +219,29 @@ class UiTests(unittest.TestCase):
         self.assertIsNone(window._history_window)
         self.assertFalse(window.isVisible())
 
+    def test_closing_history_window_keeps_translator_visible(self) -> None:
+        previous_quit_setting = self.app.quitOnLastWindowClosed()
+        self.app.setQuitOnLastWindowClosed(False)
+        self.addCleanup(self.app.setQuitOnLastWindowClosed, previous_quit_setting)
+
+        window = TranslatorWindow(
+            config=self._config(),
+            repository=_DummyRepository(),
+            service=_DummyService(),
+        )
+        self.addCleanup(window.close)
+        window.show()
+        self.app.processEvents()
+
+        window._show_history()
+        self.app.processEvents()
+
+        assert window._history_window is not None
+        window._history_window.close()
+        self.app.processEvents()
+
+        self.assertTrue(window.isVisible())
+
     def test_submit_selects_entire_input_for_replacement(self) -> None:
         window = TranslatorWindow(
             config=self._config(),

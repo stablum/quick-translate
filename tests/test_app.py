@@ -26,6 +26,25 @@ class AppTests(unittest.TestCase):
                     Path("C:/apps/quick-translate"),
                 )
 
+    def test_application_does_not_quit_when_history_window_closes(self) -> None:
+        class DummyApplication:
+            def __init__(self) -> None:
+                self.application_name = ""
+                self.quit_on_last_window_closed = True
+
+            def setApplicationName(self, name: str) -> None:
+                self.application_name = name
+
+            def setQuitOnLastWindowClosed(self, enabled: bool) -> None:
+                self.quit_on_last_window_closed = enabled
+
+        app = DummyApplication()
+
+        app_module._configure_application(app)  # type: ignore[arg-type]
+
+        self.assertEqual(app.application_name, "Quick Translate")
+        self.assertFalse(app.quit_on_last_window_closed)
+
 
 if __name__ == "__main__":
     unittest.main()

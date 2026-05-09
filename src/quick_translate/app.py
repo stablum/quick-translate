@@ -22,6 +22,11 @@ def _default_config_path() -> Path:
     return _runtime_root() / "config.toml"
 
 
+def _configure_application(app: QApplication) -> None:
+    app.setApplicationName("Quick Translate")
+    app.setQuitOnLastWindowClosed(False)
+
+
 def main() -> int:
     config_path = _default_config_path()
     bootstrap_log_path = config_path.parent.resolve() / "quick-translate.log"
@@ -30,8 +35,7 @@ def main() -> int:
     logger.info("Starting Quick Translate")
 
     app = QApplication(sys.argv)
-    app.setApplicationName("Quick Translate")
-    app.setQuitOnLastWindowClosed(True)
+    _configure_application(app)
 
     try:
         config = load_config(config_path)
