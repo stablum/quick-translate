@@ -9,10 +9,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from PySide6.QtCore import QPoint, QPointF, Qt
+from PySide6.QtGui import QImage, QMouseEvent, QPainter
 from PySide6.QtWidgets import QApplication
 
 from quick_translate.config import AppConfig
-from quick_translate.ui.main import TranslatorWindow
+from quick_translate.ui.main import DragHandle, FrostedPanel, TranslatorWindow
 
 
 class _DummyRepository:
@@ -57,6 +59,84 @@ class UiTests(unittest.TestCase):
         self.addCleanup(window.close)
 
         self.assertEqual(window._close_button.text(), "x")
+
+    def test_panel_renders_translucent_surface(self) -> None:
+        panel = FrostedPanel(0.1)
+        panel.resize(80, 80)
+
+        image = QImage(panel.size(), QImage.Format.Format_ARGB32_Premultiplied)
+        image.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(image)
+        panel.render(painter, QPoint())
+        painter.end()
+
+        center_alpha = image.pixelColor(40, 40).alpha()
+        self.assertGreater(center_alpha, 0)
+        self.assertLess(center_alpha, 80)
+
+    def test_text_edit_viewports_are_translucent(self) -> None:
+        window = TranslatorWindow(
+            config=self._config(),
+            repository=_DummyRepository(),
+            service=_DummyService(),
+        )
+        self.addCleanup(window.close)
+
+        self.assertTrue(
+            window._source_edit.viewport().testAttribute(
+                Qt.WidgetAttribute.WA_TranslucentBackground
+            )
+        )
+        self.assertTrue(
+            window._result_edit.viewport().testAttribute(
+                Qt.WidgetAttribute.WA_TranslucentBackground
+            )
+        )
+
+    def test_drag_handle_accepts_left_mouse_drag(self) -> None:
+        handle = DragHandle()
+        started: list[QPoint] = []
+        moved: list[QPoint] = []
+        released: list[bool] = []
+        handle.drag_started.connect(started.append)
+        handle.drag_moved.connect(moved.append)
+        handle.drag_released.connect(lambda: released.append(True))
+
+        press = QMouseEvent(
+            QMouseEvent.Type.MouseButtonPress,
+            QPointF(4, 4),
+            QPointF(14, 14),
+            Qt.MouseButton.LeftButton,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+        )
+        move = QMouseEvent(
+            QMouseEvent.Type.MouseMove,
+            QPointF(24, 24),
+            QPointF(34, 34),
+            Qt.MouseButton.NoButton,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+        )
+        release = QMouseEvent(
+            QMouseEvent.Type.MouseButtonRelease,
+            QPointF(24, 24),
+            QPointF(34, 34),
+            Qt.MouseButton.LeftButton,
+            Qt.MouseButton.NoButton,
+            Qt.KeyboardModifier.NoModifier,
+        )
+
+        handle.mousePressEvent(press)
+        handle.mouseMoveEvent(move)
+        handle.mouseReleaseEvent(release)
+
+        self.assertTrue(press.isAccepted())
+        self.assertTrue(move.isAccepted())
+        self.assertTrue(release.isAccepted())
+        self.assertEqual(started, [QPoint(14, 14)])
+        self.assertEqual(moved, [QPoint(34, 34)])
+        self.assertEqual(released, [True])
 
     def test_close_event_closes_history_window(self) -> None:
         window = TranslatorWindow(

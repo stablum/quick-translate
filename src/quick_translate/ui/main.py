@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QObject, QPoint, QRunnable, Qt, QThreadPool, Signal
+from PySide6.QtCore import QEvent, QObject, QPoint, QRunnable, Qt, QThreadPool, Signal
 from PySide6.QtGui import QCloseEvent, QColor, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
     QApplication,
@@ -70,10 +70,16 @@ class FrostedPanel(QFrame):
     def __init__(self, surface_opacity: float) -> None:
         super().__init__()
         self._surface_opacity = surface_opacity
+        self.setCursor(Qt.CursorShape.SizeAllCursor)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setAutoFillBackground(False)
 
     def paintEvent(self, event) -> None:  # type: ignore[override]
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
+        painter.fillRect(self.rect(), Qt.GlobalColor.transparent)
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
 
         rect = self.rect().adjusted(0, 0, -1, -1)
         path = QPainterPath()
@@ -91,18 +97,29 @@ class DragHandle(QFrame):
     drag_moved = Signal(QPoint)
     drag_released = Signal()
 
+    def __init__(self) -> None:
+        super().__init__()
+        self.setCursor(Qt.CursorShape.SizeAllCursor)
+
     def mousePressEvent(self, event) -> None:  # type: ignore[override]
         if event.button() == Qt.MouseButton.LeftButton:
+            event.accept()
             self.drag_started.emit(event.globalPosition().toPoint())
+            return
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event) -> None:  # type: ignore[override]
         if event.buttons() & Qt.MouseButton.LeftButton:
+            event.accept()
             self.drag_moved.emit(event.globalPosition().toPoint())
+            return
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event) -> None:  # type: ignore[override]
-        self.drag_released.emit()
+        if event.button() == Qt.MouseButton.LeftButton:
+            event.accept()
+            self.drag_released.emit()
+            return
         super().mouseReleaseEvent(event)
 
 
@@ -130,7 +147,6 @@ class TranslatorWindow(QWidget):
         self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)
         self.setWindowFlag(Qt.WindowType.Tool, True)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
         self.setAutoFillBackground(False)
         self.resize(self._config.window_width, self._config.window_height)
 
@@ -140,11 +156,10 @@ class TranslatorWindow(QWidget):
         root_layout = QVBoxLayout(self)
         root_layout.setContentsMargins(10, 10, 10, 10)
 
-        panel = FrostedPanel(self._surface_opacity)
-        panel.setObjectName("panel")
-        panel.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-        panel.setAutoFillBackground(False)
-        panel_layout = QVBoxLayout(panel)
+        self._panel = FrostedPanel(self._surface_opacity)
+        self._panel.setObjectName("panel")
+        self._panel.installEventFilter(self)
+        panel_layout = QVBoxLayout(self._panel)
         panel_layout.setContentsMargins(12, 10, 12, 12)
         panel_layout.setSpacing(8)
 
@@ -158,12 +173,12 @@ class TranslatorWindow(QWidget):
         shadow.setBlurRadius(36)
         shadow.setOffset(0, 10)
         shadow.setColor(QColor(0, 0, 0, shadow_alpha))
-        panel.setGraphicsEffect(shadow)
+        self._panel.setGraphicsEffect(shadow)
 
-        handle = DragHandle()
-        handle.setObjectName("handle")
-        handle.setFixedHeight(28)
-        handle_layout = QHBoxLayout(handle)
+        self._drag_handle = DragHandle()
+        self._drag_handle.setObjectName("handle")
+        self._drag_handle.setFixedHeight(28)
+        handle_layout = QHBoxLayout(self._drag_handle)
         handle_layout.setContentsMargins(0, 0, 0, 0)
         handle_layout.addStretch(1)
 
@@ -179,6 +194,7 @@ class TranslatorWindow(QWidget):
 
         self._source_edit = SubmitTextEdit()
         self._source_edit.setObjectName("sourceEdit")
+        self._make_text_edit_translucent(self._source_edit)
         self._source_edit.setPlaceholderText("Type and press Enter")
         self._source_edit.setSizePolicy(
             QSizePolicy.Policy.Expanding,
@@ -190,6 +206,7 @@ class TranslatorWindow(QWidget):
 
         self._result_edit = QPlainTextEdit()
         self._result_edit.setObjectName("resultEdit")
+        self._make_text_edit_translucent(self._result_edit)
         self._result_edit.setReadOnly(True)
         self._result_edit.setSizePolicy(
             QSizePolicy.Policy.Expanding,
@@ -198,14 +215,14 @@ class TranslatorWindow(QWidget):
         self._result_edit.setMinimumHeight(56)
         self._result_edit.setMaximumHeight(112)
 
-        panel_layout.addWidget(handle)
+        panel_layout.addWidget(self._drag_handle)
         panel_layout.addWidget(self._source_edit, 1)
         panel_layout.addWidget(self._result_edit, 1)
-        root_layout.addWidget(panel)
+        root_layout.addWidget(self._panel)
 
-        handle.drag_started.connect(self._begin_drag)
-        handle.drag_moved.connect(self._drag_to)
-        handle.drag_released.connect(self._end_drag)
+        self._drag_handle.drag_started.connect(self._begin_drag)
+        self._drag_handle.drag_moved.connect(self._drag_to)
+        self._drag_handle.drag_released.connect(self._end_drag)
 
         self.setStyleSheet(
             """
@@ -257,12 +274,40 @@ class TranslatorWindow(QWidget):
             )
         )
 
+    @staticmethod
+    def _make_text_edit_translucent(edit: QPlainTextEdit) -> None:
+        edit.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        edit.setAutoFillBackground(False)
+        edit.viewport().setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        edit.viewport().setAutoFillBackground(False)
+
     def _make_icon_button(self, text: str, tooltip: str) -> QToolButton:
         button = QToolButton()
         button.setText(text)
         button.setToolTip(tooltip)
         button.setCursor(Qt.CursorShape.PointingHandCursor)
         return button
+
+    def eventFilter(self, watched: QObject, event) -> bool:  # type: ignore[override]
+        if watched is self._panel and self._handle_panel_drag_event(event):
+            return True
+        return super().eventFilter(watched, event)
+
+    def _handle_panel_drag_event(self, event) -> bool:
+        event_type = event.type()
+        if event_type == QEvent.Type.MouseButtonPress and event.button() == Qt.MouseButton.LeftButton:
+            event.accept()
+            self._begin_drag(event.globalPosition().toPoint())
+            return True
+        if event_type == QEvent.Type.MouseMove and event.buttons() & Qt.MouseButton.LeftButton:
+            event.accept()
+            self._drag_to(event.globalPosition().toPoint())
+            return True
+        if event_type == QEvent.Type.MouseButtonRelease and event.button() == Qt.MouseButton.LeftButton:
+            event.accept()
+            self._end_drag()
+            return True
+        return False
 
     def _request_exit(self) -> None:
         self.close()
@@ -273,7 +318,7 @@ class TranslatorWindow(QWidget):
     def showEvent(self, event) -> None:  # type: ignore[override]
         super().showEvent(event)
         logger.info("Showing translator overlay")
-        enable_blur(int(self.winId()))
+        enable_blur(int(self.winId()), self._surface_opacity)
         if not self._positioned_once:
             self._positioned_once = True
             screen = self.screen()

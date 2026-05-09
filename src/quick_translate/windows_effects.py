@@ -37,10 +37,12 @@ if sys.platform == "win32":
         ]
 
 
-    ACCENT_ENABLE_HOSTBACKDROP = 5
+    ACCENT_ENABLE_BLURBEHIND = 3
     ACCENT_ENABLE_ACRYLICBLURBEHIND = 4
+    ACCENT_ENABLE_HOSTBACKDROP = 5
     WCA_ACCENT_POLICY = 19
     DWMWA_SYSTEMBACKDROP_TYPE = 38
+    DWMSBT_NONE = 1
     DWMSBT_TRANSIENTWINDOW = 3
 
     windll.user32.SetWindowCompositionAttribute.argtypes = [c_void_p, c_void_p]
@@ -66,7 +68,12 @@ def _set_accent(hwnd: int, accent_state: int, gradient_color: int) -> bool:
     return bool(windll.user32.SetWindowCompositionAttribute(hwnd, byref(data)))
 
 
-def enable_blur(hwnd: int) -> None:
+def _accent_gradient_color(opacity: float, tint: int = 0xFFFFFF) -> int:
+    alpha = max(0, min(255, round(255 * opacity)))
+    return (alpha << 24) | (tint & 0xFFFFFF)
+
+
+def enable_blur(hwnd: int, opacity: float = 0.14) -> None:
     if sys.platform != "win32":
         return
 
@@ -77,7 +84,7 @@ def enable_blur(hwnd: int) -> None:
         pass
 
     try:
-        backdrop_type = c_int(DWMSBT_TRANSIENTWINDOW)
+        backdrop_type = c_int(DWMSBT_NONE)
         windll.dwmapi.DwmSetWindowAttribute(
             hwnd,
             DWMWA_SYSTEMBACKDROP_TYPE,
@@ -88,17 +95,18 @@ def enable_blur(hwnd: int) -> None:
         pass
 
     try:
+        gradient_color = _accent_gradient_color(opacity)
         applied = _set_accent(
             hwnd=hwnd,
-            accent_state=ACCENT_ENABLE_HOSTBACKDROP,
-            gradient_color=0x18FFFFFF,
+            accent_state=ACCENT_ENABLE_ACRYLICBLURBEHIND,
+            gradient_color=gradient_color,
         )
         if not applied:
-            logger.warning("Host backdrop blur was unavailable, falling back to acrylic blur")
+            logger.warning("Acrylic blur was unavailable, falling back to basic blur")
             _set_accent(
                 hwnd=hwnd,
-                accent_state=ACCENT_ENABLE_ACRYLICBLURBEHIND,
-                gradient_color=0x24FFFFFF,
+                accent_state=ACCENT_ENABLE_BLURBEHIND,
+                gradient_color=gradient_color,
             )
     except (AttributeError, OSError):
         logger.exception("Failed to apply Windows blur effects")
