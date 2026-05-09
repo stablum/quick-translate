@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QEvent, QObject, QPoint, QRunnable, Qt, QThreadPool, Signal
+from PySide6.QtCore import QEvent, QObject, QPoint, QPointF, QRunnable, Qt, QThreadPool, Signal
 from PySide6.QtGui import (
     QCloseEvent,
     QColor,
@@ -8,8 +8,6 @@ from PySide6.QtGui import (
     QPainter,
     QPainterPath,
     QPen,
-    QTextCharFormat,
-    QTextCursor,
 )
 from PySide6.QtWidgets import (
     QApplication,
@@ -65,11 +63,7 @@ class TranslationTask(QRunnable):
 class OutlinedPlainTextEdit(QPlainTextEdit):
     def __init__(self) -> None:
         super().__init__()
-        self._is_applying_outline = False
-        self._outline_format = self._build_outline_format()
         self._set_overlay_font()
-        self._apply_outline_format()
-        self.textChanged.connect(self._apply_outline_format)
 
     def _set_overlay_font(self) -> None:
         font = QFont("Segoe UI")
@@ -78,35 +72,52 @@ class OutlinedPlainTextEdit(QPlainTextEdit):
         self.setFont(font)
         self.document().setDefaultFont(font)
 
-    @staticmethod
-    def _build_outline_format() -> QTextCharFormat:
-        text_format = QTextCharFormat()
-        text_format.setForeground(QColor(255, 255, 255))
-        text_format.setFontWeight(QFont.Weight.Bold)
-        text_format.setTextOutline(QPen(QColor(0, 0, 0), OVERLAY_TEXT_OUTLINE_WIDTH))
-        return text_format
+    def paintEvent(self, event) -> None:  # type: ignore[override]
+        super().paintEvent(event)
+        self._paint_outlined_text(event.rect())
 
-    def _apply_outline_format(self) -> None:
-        if self._is_applying_outline:
-            return
+    def _paint_outlined_text(self, exposed_rect) -> None:
+        painter = QPainter(self.viewport())
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        painter.setFont(self.font())
 
-        self._is_applying_outline = True
-        try:
-            cursor = self.textCursor()
-            cursor_position = cursor.position()
-            cursor_anchor = cursor.anchor()
+        block = self.firstVisibleBlock()
+        top = self.blockBoundingGeometry(block).translated(self.contentOffset()).top()
+        bottom = top + self.blockBoundingRect(block).height()
 
-            document_cursor = QTextCursor(self.document())
-            document_cursor.select(QTextCursor.SelectionType.Document)
-            document_cursor.mergeCharFormat(self._outline_format)
-            self.setCurrentCharFormat(self._outline_format)
+        while block.isValid() and top <= exposed_rect.bottom():
+            if block.isVisible() and bottom >= exposed_rect.top():
+                layout = block.layout()
+                for line_index in range(layout.lineCount()):
+                    line = layout.lineAt(line_index)
+                    start = line.textStart()
+                    text = block.text()[start : start + line.textLength()]
+                    if text:
+                        baseline = QPointF(
+                            self.contentOffset().x() + line.x(),
+                            top + line.y() + line.ascent(),
+                        )
+                        self._draw_text_path(painter, baseline, text)
 
-            cursor.setPosition(cursor_anchor)
-            if cursor_position != cursor_anchor:
-                cursor.setPosition(cursor_position, QTextCursor.MoveMode.KeepAnchor)
-            self.setTextCursor(cursor)
-        finally:
-            self._is_applying_outline = False
+            block = block.next()
+            top = bottom
+            bottom = top + self.blockBoundingRect(block).height()
+
+    def _draw_text_path(self, painter: QPainter, baseline: QPointF, text: str) -> None:
+        path = QPainterPath()
+        path.addText(baseline, self.font(), text)
+
+        painter.setPen(
+            QPen(
+                QColor(0, 0, 0),
+                OVERLAY_TEXT_OUTLINE_WIDTH,
+                Qt.PenStyle.SolidLine,
+                Qt.PenCapStyle.RoundCap,
+                Qt.PenJoinStyle.RoundJoin,
+            )
+        )
+        painter.setBrush(QColor(255, 255, 255))
+        painter.drawPath(path)
 
 
 class SubmitTextEdit(OutlinedPlainTextEdit):

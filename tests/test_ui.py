@@ -10,14 +10,13 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from PySide6.QtCore import QPoint, QPointF, Qt
-from PySide6.QtGui import QColor, QImage, QMouseEvent, QPainter, QTextCursor
+from PySide6.QtGui import QImage, QMouseEvent, QPainter
 from PySide6.QtWidgets import QApplication
 
 from quick_translate.config import AppConfig
 from quick_translate.ui.main import (
     DragHandle,
     FrostedPanel,
-    OVERLAY_TEXT_OUTLINE_WIDTH,
     OVERLAY_TEXT_PIXEL_SIZE,
     TranslatorWindow,
     WINDOW_OPACITY,
@@ -86,6 +85,8 @@ class UiTests(unittest.TestCase):
             service=_DummyService(),
         )
         self.addCleanup(window.close)
+        window.show()
+        self.app.processEvents()
 
         style = window.styleSheet()
         self.assertIn("font-weight: 700", style)
@@ -94,15 +95,29 @@ class UiTests(unittest.TestCase):
         self.assertEqual(window._result_edit.maximumHeight(), 38)
 
         window._source_edit.setPlainText("word")
-        cursor = QTextCursor(window._source_edit.document())
-        cursor.movePosition(QTextCursor.MoveOperation.NextCharacter, QTextCursor.MoveMode.KeepAnchor)
-        text_format = cursor.charFormat()
+        self.app.processEvents()
 
+        image = QImage(window._source_edit.size(), QImage.Format.Format_ARGB32_Premultiplied)
+        image.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(image)
+        window._source_edit.render(painter, QPoint())
+        painter.end()
+
+        white_pixels = 0
+        black_pixels = 0
+        for y in range(image.height()):
+            for x in range(image.width()):
+                color = image.pixelColor(x, y)
+                if color.alpha() > 140 and color.red() > 200 and color.green() > 200 and color.blue() > 200:
+                    white_pixels += 1
+                if color.alpha() > 140 and color.red() < 40 and color.green() < 40 and color.blue() < 40:
+                    black_pixels += 1
+
+        self.assertEqual(window._source_edit.toPlainText(), "word")
         self.assertEqual(window._source_edit.font().pixelSize(), OVERLAY_TEXT_PIXEL_SIZE)
         self.assertTrue(window._source_edit.font().bold())
-        self.assertEqual(text_format.foreground().color(), QColor(255, 255, 255))
-        self.assertEqual(text_format.textOutline().color(), QColor(0, 0, 0))
-        self.assertAlmostEqual(text_format.textOutline().widthF(), OVERLAY_TEXT_OUTLINE_WIDTH)
+        self.assertGreater(white_pixels, 20)
+        self.assertGreater(black_pixels, 20)
 
     def test_panel_renders_translucent_surface(self) -> None:
         panel = FrostedPanel(0.1)
