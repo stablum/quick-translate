@@ -14,7 +14,7 @@ from PySide6.QtGui import QImage, QMouseEvent, QPainter
 from PySide6.QtWidgets import QApplication
 
 from quick_translate.config import AppConfig
-from quick_translate.ui.main import DragHandle, FrostedPanel, TranslatorWindow
+from quick_translate.ui.main import DragHandle, FrostedPanel, TranslatorWindow, WINDOW_OPACITY
 
 
 class _DummyRepository:
@@ -45,9 +45,9 @@ class UiTests(unittest.TestCase):
             prompt_template_path=Path("prompt_template.txt").resolve(),
             database_path=Path("translations.db").resolve(),
             log_path=Path("quick-translate.log").resolve(),
-            window_width=360,
-            window_height=200,
-            surface_opacity=0.14,
+            window_width=240,
+            window_height=104,
+            surface_opacity=0.08,
         )
 
     def test_close_button_uses_plain_x(self) -> None:
@@ -59,6 +59,31 @@ class UiTests(unittest.TestCase):
         self.addCleanup(window.close)
 
         self.assertEqual(window._close_button.text(), "x")
+
+    def test_window_is_compact_and_partly_transparent(self) -> None:
+        window = TranslatorWindow(
+            config=self._config(),
+            repository=_DummyRepository(),
+            service=_DummyService(),
+        )
+        self.addCleanup(window.close)
+
+        self.assertEqual(window.size().width(), 240)
+        self.assertEqual(window.size().height(), 104)
+        self.assertAlmostEqual(window.windowOpacity(), WINDOW_OPACITY, places=2)
+
+    def test_text_edits_use_bold_compact_style(self) -> None:
+        window = TranslatorWindow(
+            config=self._config(),
+            repository=_DummyRepository(),
+            service=_DummyService(),
+        )
+        self.addCleanup(window.close)
+
+        style = window.styleSheet()
+        self.assertIn("font-weight: 700", style)
+        self.assertEqual(window._source_edit.minimumHeight(), 28)
+        self.assertEqual(window._result_edit.maximumHeight(), 40)
 
     def test_panel_renders_translucent_surface(self) -> None:
         panel = FrostedPanel(0.1)

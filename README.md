@@ -1,11 +1,11 @@
 # Quick Translate
 
-Quick Translate is a small Windows 11 overlay app for fast OpenAI-powered translations. The main window stays above other windows, uses a translucent blurred panel, stores every translation in SQLite, and includes a sortable history view.
+Quick Translate is a tiny Windows 11 overlay app for fast OpenAI-powered translations while watching or listening to media. The main window stays above other windows, uses a translucent compact panel, stores every translation in SQLite, and includes a sortable history view.
 
 ## Features
 
-- Always-on-top floating translator box
-- Transparent, blurred Win11-style panel
+- Always-on-top compact translator box
+- Transparent, low-opacity panel with bold text
 - OpenAI key loaded from a local `.env`
 - App configuration through `config.toml`
 - Prompt instructions loaded from `prompt_template.txt`
@@ -21,7 +21,7 @@ Quick Translate is a small Windows 11 overlay app for fast OpenAI-powered transl
    ```
 
 2. Copy `.env.example` to `.env` and set `OPENAI_API_KEY`.
-3. Adjust `config.toml` if you want different model, languages, paths, or window size.
+3. Adjust `config.toml` if you want different model, languages, paths, opacity, or window size.
 4. Adjust `prompt_template.txt` if you want different translation instructions.
 5. Start the app:
 
@@ -44,7 +44,7 @@ If the app crashes or behaves unexpectedly, check `quick-translate.log` in the p
 - `[ui]`: `width`, `height`, `surface_opacity`
 
 Relative paths are resolved from the folder containing `config.toml`.
-`surface_opacity` is a value from `0.0` to `1.0`; lower values make the glass more transparent, while text and icons stay opaque.
+The default `240x104` window is intended to sit over video with minimal coverage. `surface_opacity` is a value from `0.0` to `1.0`; lower values make the glass panel more transparent.
 
 ## Secrets
 

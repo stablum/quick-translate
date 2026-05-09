@@ -28,35 +28,22 @@ if sys.platform == "win32":
         ]
 
 
-    class Margins(Structure):
-        _fields_ = [
-            ("left", c_int),
-            ("right", c_int),
-            ("top", c_int),
-            ("bottom", c_int),
-        ]
-
-
     ACCENT_ENABLE_BLURBEHIND = 3
     ACCENT_ENABLE_ACRYLICBLURBEHIND = 4
-    ACCENT_ENABLE_HOSTBACKDROP = 5
     WCA_ACCENT_POLICY = 19
     DWMWA_SYSTEMBACKDROP_TYPE = 38
     DWMSBT_NONE = 1
-    DWMSBT_TRANSIENTWINDOW = 3
 
     windll.user32.SetWindowCompositionAttribute.argtypes = [c_void_p, c_void_p]
     windll.user32.SetWindowCompositionAttribute.restype = c_int
-    windll.dwmapi.DwmExtendFrameIntoClientArea.argtypes = [c_void_p, c_void_p]
-    windll.dwmapi.DwmExtendFrameIntoClientArea.restype = c_int
     windll.dwmapi.DwmSetWindowAttribute.argtypes = [c_void_p, c_uint, c_void_p, c_uint]
     windll.dwmapi.DwmSetWindowAttribute.restype = c_int
 
 
-def _set_accent(hwnd: int, accent_state: int, gradient_color: int) -> bool:
+def _set_accent(hwnd: int, accent_state: int, gradient_color: int, accent_flags: int = 0) -> bool:
     accent = AccentPolicy(
         AccentState=accent_state,
-        AccentFlags=2,
+        AccentFlags=accent_flags,
         GradientColor=gradient_color,
         AnimationId=0,
     )
@@ -77,12 +64,6 @@ def enable_blur(hwnd: int, opacity: float = 0.14) -> None:
     if sys.platform != "win32":
         return
 
-    margins = Margins(-1, -1, -1, -1)
-    try:
-        windll.dwmapi.DwmExtendFrameIntoClientArea(hwnd, byref(margins))
-    except OSError:
-        pass
-
     try:
         backdrop_type = c_int(DWMSBT_NONE)
         windll.dwmapi.DwmSetWindowAttribute(
@@ -98,15 +79,16 @@ def enable_blur(hwnd: int, opacity: float = 0.14) -> None:
         gradient_color = _accent_gradient_color(opacity)
         applied = _set_accent(
             hwnd=hwnd,
-            accent_state=ACCENT_ENABLE_ACRYLICBLURBEHIND,
+            accent_state=ACCENT_ENABLE_BLURBEHIND,
             gradient_color=gradient_color,
         )
         if not applied:
-            logger.warning("Acrylic blur was unavailable, falling back to basic blur")
+            logger.warning("Basic blur was unavailable, falling back to acrylic blur")
             _set_accent(
                 hwnd=hwnd,
-                accent_state=ACCENT_ENABLE_BLURBEHIND,
+                accent_state=ACCENT_ENABLE_ACRYLICBLURBEHIND,
                 gradient_color=gradient_color,
+                accent_flags=2,
             )
     except (AttributeError, OSError):
         logger.exception("Failed to apply Windows blur effects")

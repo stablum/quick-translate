@@ -84,7 +84,9 @@ class ConfigTests(unittest.TestCase):
                     os.environ["OPENAI_API_KEY"] = previous
 
             self.assertEqual(config.openai_api_key, "dotenv-key")
-            self.assertEqual(config.surface_opacity, 0.14)
+            self.assertEqual(config.window_width, 240)
+            self.assertEqual(config.window_height, 104)
+            self.assertEqual(config.surface_opacity, 0.08)
 
     def test_env_var_still_overrides_dotenv(self) -> None:
         with workspace_temp_dir() as temp_dir:

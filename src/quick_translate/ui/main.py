@@ -5,7 +5,6 @@ from PySide6.QtGui import QCloseEvent, QColor, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
     QApplication,
     QFrame,
-    QGraphicsDropShadowEffect,
     QHBoxLayout,
     QPlainTextEdit,
     QSizePolicy,
@@ -23,6 +22,8 @@ from quick_translate.windows_effects import enable_blur
 
 
 logger = get_logger(__name__)
+
+WINDOW_OPACITY = 0.82
 
 
 class WorkerSignals(QObject):
@@ -83,7 +84,7 @@ class FrostedPanel(QFrame):
 
         rect = self.rect().adjusted(0, 0, -1, -1)
         path = QPainterPath()
-        path.addRoundedRect(rect, 18, 18)
+        path.addRoundedRect(rect, 10, 10)
 
         fill_alpha = max(0, min(255, round(255 * self._surface_opacity)))
         border_alpha = max(fill_alpha, min(255, round(255 * min(1.0, self._surface_opacity + 0.15))))
@@ -148,36 +149,30 @@ class TranslatorWindow(QWidget):
         self.setWindowFlag(Qt.WindowType.Tool, True)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.setAutoFillBackground(False)
+        self.setWindowOpacity(WINDOW_OPACITY)
         self.resize(self._config.window_width, self._config.window_height)
 
         self._build_ui()
 
     def _build_ui(self) -> None:
         root_layout = QVBoxLayout(self)
-        root_layout.setContentsMargins(10, 10, 10, 10)
+        root_layout.setContentsMargins(3, 3, 3, 3)
 
         self._panel = FrostedPanel(self._surface_opacity)
         self._panel.setObjectName("panel")
         self._panel.installEventFilter(self)
         panel_layout = QVBoxLayout(self._panel)
-        panel_layout.setContentsMargins(12, 10, 12, 12)
-        panel_layout.setSpacing(8)
+        panel_layout.setContentsMargins(7, 4, 7, 5)
+        panel_layout.setSpacing(3)
 
-        input_background_alpha = max(0, min(255, round(255 * self._surface_opacity * 0.35)))
-        input_border_alpha = max(0, min(255, round(255 * min(1.0, self._surface_opacity * 0.8))))
-        result_background_alpha = max(0, min(255, round(255 * self._surface_opacity * 0.22)))
-        hover_background_alpha = max(0, min(255, round(255 * self._surface_opacity * 0.5)))
-        shadow_alpha = max(0, min(255, round(255 * min(0.25, 0.08 + (self._surface_opacity * 0.5)))))
-
-        shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(36)
-        shadow.setOffset(0, 10)
-        shadow.setColor(QColor(0, 0, 0, shadow_alpha))
-        self._panel.setGraphicsEffect(shadow)
+        input_background_alpha = max(0, min(255, round(255 * max(0.16, self._surface_opacity * 1.8))))
+        input_border_alpha = max(0, min(255, round(255 * max(0.22, self._surface_opacity * 2.2))))
+        result_background_alpha = max(0, min(255, round(255 * max(0.12, self._surface_opacity * 1.35))))
+        hover_background_alpha = max(0, min(255, round(255 * max(0.18, self._surface_opacity * 1.6))))
 
         self._drag_handle = DragHandle()
         self._drag_handle.setObjectName("handle")
-        self._drag_handle.setFixedHeight(28)
+        self._drag_handle.setFixedHeight(18)
         handle_layout = QHBoxLayout(self._drag_handle)
         handle_layout.setContentsMargins(0, 0, 0, 0)
         handle_layout.addStretch(1)
@@ -195,13 +190,13 @@ class TranslatorWindow(QWidget):
         self._source_edit = SubmitTextEdit()
         self._source_edit.setObjectName("sourceEdit")
         self._make_text_edit_translucent(self._source_edit)
-        self._source_edit.setPlaceholderText("Type and press Enter")
+        self._source_edit.setPlaceholderText("Type word")
         self._source_edit.setSizePolicy(
             QSizePolicy.Policy.Expanding,
             QSizePolicy.Policy.Expanding,
         )
-        self._source_edit.setMinimumHeight(56)
-        self._source_edit.setMaximumHeight(84)
+        self._source_edit.setMinimumHeight(28)
+        self._source_edit.setMaximumHeight(32)
         self._source_edit.submit_requested.connect(self._start_translation)
 
         self._result_edit = QPlainTextEdit()
@@ -212,8 +207,8 @@ class TranslatorWindow(QWidget):
             QSizePolicy.Policy.Expanding,
             QSizePolicy.Policy.Expanding,
         )
-        self._result_edit.setMinimumHeight(56)
-        self._result_edit.setMaximumHeight(112)
+        self._result_edit.setMinimumHeight(32)
+        self._result_edit.setMaximumHeight(40)
 
         panel_layout.addWidget(self._drag_handle)
         panel_layout.addWidget(self._source_edit, 1)
@@ -241,8 +236,10 @@ class TranslatorWindow(QWidget):
             QPlainTextEdit {
                 background-color: rgba(255, 255, 255, %d);
                 border: 1px solid rgba(255, 255, 255, %d);
-                border-radius: 12px;
-                padding: 8px 10px;
+                border-radius: 7px;
+                font-size: 12px;
+                font-weight: 700;
+                padding: 3px 6px;
                 selection-background-color: rgba(100, 145, 255, 92);
             }
             QPlainTextEdit#resultEdit {
@@ -251,12 +248,12 @@ class TranslatorWindow(QWidget):
             QToolButton {
                 background-color: transparent;
                 border: none;
-                border-radius: 10px;
+                border-radius: 6px;
                 color: rgb(24, 28, 34);
-                font-size: 14px;
+                font-size: 12px;
                 font-family: "Segoe UI Emoji", "Segoe UI Symbol", "Segoe UI";
-                min-width: 28px;
-                min-height: 28px;
+                min-width: 20px;
+                min-height: 18px;
                 padding: 0;
             }
             QToolButton:hover {
@@ -280,6 +277,8 @@ class TranslatorWindow(QWidget):
         edit.setAutoFillBackground(False)
         edit.viewport().setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         edit.viewport().setAutoFillBackground(False)
+        edit.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        edit.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
     def _make_icon_button(self, text: str, tooltip: str) -> QToolButton:
         button = QToolButton()
