@@ -51,7 +51,7 @@ class UiTests(unittest.TestCase):
             prompt_template_path=Path("prompt_template.txt").resolve(),
             database_path=Path("translations.db").resolve(),
             log_path=Path("quick-translate.log").resolve(),
-            window_width=240,
+            window_width=280,
             window_height=104,
             surface_opacity=0.08,
         )
@@ -74,7 +74,7 @@ class UiTests(unittest.TestCase):
         )
         self.addCleanup(window.close)
 
-        self.assertEqual(window.size().width(), 240)
+        self.assertEqual(window.size().width(), 280)
         self.assertEqual(window.size().height(), 104)
         self.assertAlmostEqual(window.windowOpacity(), WINDOW_OPACITY, places=2)
 
@@ -90,8 +90,8 @@ class UiTests(unittest.TestCase):
 
         style = window.styleSheet()
         self.assertIn("font-weight: 700", style)
-        self.assertIn("font-size: 16px", style)
-        self.assertEqual(window._source_edit.minimumHeight(), 30)
+        self.assertIn("font-size: 18px", style)
+        self.assertEqual(window._source_edit.minimumHeight(), 32)
         self.assertEqual(window._result_edit.maximumHeight(), 38)
 
         window._source_edit.setPlainText("word")
@@ -110,7 +110,7 @@ class UiTests(unittest.TestCase):
                 color = image.pixelColor(x, y)
                 if color.alpha() > 140 and color.red() > 200 and color.green() > 200 and color.blue() > 200:
                     white_pixels += 1
-                if color.alpha() > 140 and color.red() < 40 and color.green() < 40 and color.blue() < 40:
+                if color.alpha() > 100 and color.red() < 60 and color.green() < 60 and color.blue() < 60:
                     black_pixels += 1
 
         self.assertEqual(window._source_edit.toPlainText(), "word")

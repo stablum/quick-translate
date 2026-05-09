@@ -44,7 +44,7 @@ If the app crashes or behaves unexpectedly, check `quick-translate.log` in the p
 - `[ui]`: `width`, `height`, `surface_opacity`
 
 Relative paths are resolved from the folder containing `config.toml`.
-The default `240x104` window is intended to sit over video with minimal coverage. `surface_opacity` is a value from `0.0` to `1.0`; lower values make the glass panel more transparent.
+The default `280x104` window is intended to sit over video with minimal coverage. `surface_opacity` is a value from `0.0` to `1.0`; lower values make the glass panel more transparent.
 
 ## Secrets
 

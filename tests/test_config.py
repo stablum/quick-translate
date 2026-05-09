@@ -84,7 +84,7 @@ class ConfigTests(unittest.TestCase):
                     os.environ["OPENAI_API_KEY"] = previous
 
             self.assertEqual(config.openai_api_key, "dotenv-key")
-            self.assertEqual(config.window_width, 240)
+            self.assertEqual(config.window_width, 280)
             self.assertEqual(config.window_height, 104)
             self.assertEqual(config.surface_opacity, 0.08)
 

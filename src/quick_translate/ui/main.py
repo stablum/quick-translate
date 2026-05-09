@@ -31,8 +31,8 @@ from quick_translate.windows_effects import enable_blur
 logger = get_logger(__name__)
 
 WINDOW_OPACITY = 0.82
-OVERLAY_TEXT_PIXEL_SIZE = 16
-OVERLAY_TEXT_OUTLINE_WIDTH = 1.35
+OVERLAY_TEXT_PIXEL_SIZE = 18
+OVERLAY_TEXT_OUTLINE_WIDTH = 0.9
 
 
 class WorkerSignals(QObject):
@@ -264,7 +264,7 @@ class TranslatorWindow(QWidget):
             QSizePolicy.Policy.Expanding,
             QSizePolicy.Policy.Expanding,
         )
-        self._source_edit.setMinimumHeight(30)
+        self._source_edit.setMinimumHeight(32)
         self._source_edit.setMaximumHeight(32)
         self._source_edit.submit_requested.connect(self._start_translation)
 
@@ -293,7 +293,7 @@ class TranslatorWindow(QWidget):
             QWidget {
                 background: transparent;
                 color: rgb(255, 255, 255);
-                font-size: 16px;
+                font-size: 18px;
                 font-family: "Segoe UI";
             }
             QFrame#panel {
@@ -307,9 +307,9 @@ class TranslatorWindow(QWidget):
                 border: 1px solid rgba(255, 255, 255, %d);
                 border-radius: 7px;
                 color: rgb(255, 255, 255);
-                font-size: 16px;
+                font-size: 18px;
                 font-weight: 700;
-                padding: 2px 5px;
+                padding: 1px 5px;
                 selection-background-color: rgba(100, 145, 255, 92);
             }
             QPlainTextEdit#resultEdit {

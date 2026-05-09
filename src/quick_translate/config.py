@@ -111,7 +111,7 @@ def load_config(config_path: Path) -> AppConfig:
         prompt_template_path=prompt_template_path,
         database_path=database_path,
         log_path=log_path,
-        window_width=int(ui_data.get("width", 240)),
+        window_width=int(ui_data.get("width", 280)),
         window_height=int(ui_data.get("height", 104)),
         surface_opacity=_clamp_float(ui_data.get("surface_opacity", 0.08), 0.08, 0.0, 1.0),
     )

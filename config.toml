@@ -13,6 +13,6 @@ database_path = "translations.db"
 path = "quick-translate.log"
 
 [ui]
-width = 240
+width = 280
 height = 104
 surface_opacity = 0.08
