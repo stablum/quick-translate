@@ -10,11 +10,18 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from PySide6.QtCore import QPoint, QPointF, Qt
-from PySide6.QtGui import QImage, QMouseEvent, QPainter
+from PySide6.QtGui import QColor, QImage, QMouseEvent, QPainter, QTextCursor
 from PySide6.QtWidgets import QApplication
 
 from quick_translate.config import AppConfig
-from quick_translate.ui.main import DragHandle, FrostedPanel, TranslatorWindow, WINDOW_OPACITY
+from quick_translate.ui.main import (
+    DragHandle,
+    FrostedPanel,
+    OVERLAY_TEXT_OUTLINE_WIDTH,
+    OVERLAY_TEXT_PIXEL_SIZE,
+    TranslatorWindow,
+    WINDOW_OPACITY,
+)
 
 
 class _DummyRepository:
@@ -72,7 +79,7 @@ class UiTests(unittest.TestCase):
         self.assertEqual(window.size().height(), 104)
         self.assertAlmostEqual(window.windowOpacity(), WINDOW_OPACITY, places=2)
 
-    def test_text_edits_use_bold_compact_style(self) -> None:
+    def test_text_edits_use_bold_outlined_compact_style(self) -> None:
         window = TranslatorWindow(
             config=self._config(),
             repository=_DummyRepository(),
@@ -82,8 +89,20 @@ class UiTests(unittest.TestCase):
 
         style = window.styleSheet()
         self.assertIn("font-weight: 700", style)
-        self.assertEqual(window._source_edit.minimumHeight(), 28)
-        self.assertEqual(window._result_edit.maximumHeight(), 40)
+        self.assertIn("font-size: 16px", style)
+        self.assertEqual(window._source_edit.minimumHeight(), 30)
+        self.assertEqual(window._result_edit.maximumHeight(), 38)
+
+        window._source_edit.setPlainText("word")
+        cursor = QTextCursor(window._source_edit.document())
+        cursor.movePosition(QTextCursor.MoveOperation.NextCharacter, QTextCursor.MoveMode.KeepAnchor)
+        text_format = cursor.charFormat()
+
+        self.assertEqual(window._source_edit.font().pixelSize(), OVERLAY_TEXT_PIXEL_SIZE)
+        self.assertTrue(window._source_edit.font().bold())
+        self.assertEqual(text_format.foreground().color(), QColor(255, 255, 255))
+        self.assertEqual(text_format.textOutline().color(), QColor(0, 0, 0))
+        self.assertAlmostEqual(text_format.textOutline().widthF(), OVERLAY_TEXT_OUTLINE_WIDTH)
 
     def test_panel_renders_translucent_surface(self) -> None:
         panel = FrostedPanel(0.1)

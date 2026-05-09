@@ -5,7 +5,7 @@ Quick Translate is a tiny Windows 11 overlay app for fast OpenAI-powered transla
 ## Features
 
 - Always-on-top compact translator box
-- Transparent, low-opacity panel with bold text
+- Transparent, low-opacity panel with larger bold white text outlined in black
 - OpenAI key loaded from a local `.env`
 - App configuration through `config.toml`
 - Prompt instructions loaded from `prompt_template.txt`

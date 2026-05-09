@@ -1,7 +1,16 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QEvent, QObject, QPoint, QRunnable, Qt, QThreadPool, Signal
-from PySide6.QtGui import QCloseEvent, QColor, QPainter, QPainterPath, QPen
+from PySide6.QtGui import (
+    QCloseEvent,
+    QColor,
+    QFont,
+    QPainter,
+    QPainterPath,
+    QPen,
+    QTextCharFormat,
+    QTextCursor,
+)
 from PySide6.QtWidgets import (
     QApplication,
     QFrame,
@@ -24,6 +33,8 @@ from quick_translate.windows_effects import enable_blur
 logger = get_logger(__name__)
 
 WINDOW_OPACITY = 0.82
+OVERLAY_TEXT_PIXEL_SIZE = 16
+OVERLAY_TEXT_OUTLINE_WIDTH = 1.35
 
 
 class WorkerSignals(QObject):
@@ -51,7 +62,54 @@ class TranslationTask(QRunnable):
             self.signals.finished.emit()
 
 
-class SubmitTextEdit(QPlainTextEdit):
+class OutlinedPlainTextEdit(QPlainTextEdit):
+    def __init__(self) -> None:
+        super().__init__()
+        self._is_applying_outline = False
+        self._outline_format = self._build_outline_format()
+        self._set_overlay_font()
+        self._apply_outline_format()
+        self.textChanged.connect(self._apply_outline_format)
+
+    def _set_overlay_font(self) -> None:
+        font = QFont("Segoe UI")
+        font.setPixelSize(OVERLAY_TEXT_PIXEL_SIZE)
+        font.setWeight(QFont.Weight.Bold)
+        self.setFont(font)
+        self.document().setDefaultFont(font)
+
+    @staticmethod
+    def _build_outline_format() -> QTextCharFormat:
+        text_format = QTextCharFormat()
+        text_format.setForeground(QColor(255, 255, 255))
+        text_format.setFontWeight(QFont.Weight.Bold)
+        text_format.setTextOutline(QPen(QColor(0, 0, 0), OVERLAY_TEXT_OUTLINE_WIDTH))
+        return text_format
+
+    def _apply_outline_format(self) -> None:
+        if self._is_applying_outline:
+            return
+
+        self._is_applying_outline = True
+        try:
+            cursor = self.textCursor()
+            cursor_position = cursor.position()
+            cursor_anchor = cursor.anchor()
+
+            document_cursor = QTextCursor(self.document())
+            document_cursor.select(QTextCursor.SelectionType.Document)
+            document_cursor.mergeCharFormat(self._outline_format)
+            self.setCurrentCharFormat(self._outline_format)
+
+            cursor.setPosition(cursor_anchor)
+            if cursor_position != cursor_anchor:
+                cursor.setPosition(cursor_position, QTextCursor.MoveMode.KeepAnchor)
+            self.setTextCursor(cursor)
+        finally:
+            self._is_applying_outline = False
+
+
+class SubmitTextEdit(OutlinedPlainTextEdit):
     submit_requested = Signal()
 
     def keyPressEvent(self, event) -> None:  # type: ignore[override]
@@ -156,18 +214,18 @@ class TranslatorWindow(QWidget):
 
     def _build_ui(self) -> None:
         root_layout = QVBoxLayout(self)
-        root_layout.setContentsMargins(3, 3, 3, 3)
+        root_layout.setContentsMargins(2, 2, 2, 2)
 
         self._panel = FrostedPanel(self._surface_opacity)
         self._panel.setObjectName("panel")
         self._panel.installEventFilter(self)
         panel_layout = QVBoxLayout(self._panel)
-        panel_layout.setContentsMargins(7, 4, 7, 5)
-        panel_layout.setSpacing(3)
+        panel_layout.setContentsMargins(6, 3, 6, 4)
+        panel_layout.setSpacing(2)
 
-        input_background_alpha = max(0, min(255, round(255 * max(0.16, self._surface_opacity * 1.8))))
+        input_background_alpha = max(0, min(255, round(255 * max(0.1, self._surface_opacity * 1.2))))
         input_border_alpha = max(0, min(255, round(255 * max(0.22, self._surface_opacity * 2.2))))
-        result_background_alpha = max(0, min(255, round(255 * max(0.12, self._surface_opacity * 1.35))))
+        result_background_alpha = max(0, min(255, round(255 * max(0.08, self._surface_opacity))))
         hover_background_alpha = max(0, min(255, round(255 * max(0.18, self._surface_opacity * 1.6))))
 
         self._drag_handle = DragHandle()
@@ -195,11 +253,11 @@ class TranslatorWindow(QWidget):
             QSizePolicy.Policy.Expanding,
             QSizePolicy.Policy.Expanding,
         )
-        self._source_edit.setMinimumHeight(28)
+        self._source_edit.setMinimumHeight(30)
         self._source_edit.setMaximumHeight(32)
         self._source_edit.submit_requested.connect(self._start_translation)
 
-        self._result_edit = QPlainTextEdit()
+        self._result_edit = OutlinedPlainTextEdit()
         self._result_edit.setObjectName("resultEdit")
         self._make_text_edit_translucent(self._result_edit)
         self._result_edit.setReadOnly(True)
@@ -207,8 +265,8 @@ class TranslatorWindow(QWidget):
             QSizePolicy.Policy.Expanding,
             QSizePolicy.Policy.Expanding,
         )
-        self._result_edit.setMinimumHeight(32)
-        self._result_edit.setMaximumHeight(40)
+        self._result_edit.setMinimumHeight(36)
+        self._result_edit.setMaximumHeight(38)
 
         panel_layout.addWidget(self._drag_handle)
         panel_layout.addWidget(self._source_edit, 1)
@@ -223,8 +281,8 @@ class TranslatorWindow(QWidget):
             """
             QWidget {
                 background: transparent;
-                color: rgb(24, 28, 34);
-                font-size: 12px;
+                color: rgb(255, 255, 255);
+                font-size: 16px;
                 font-family: "Segoe UI";
             }
             QFrame#panel {
@@ -234,16 +292,17 @@ class TranslatorWindow(QWidget):
                 background: transparent;
             }
             QPlainTextEdit {
-                background-color: rgba(255, 255, 255, %d);
+                background-color: rgba(0, 0, 0, %d);
                 border: 1px solid rgba(255, 255, 255, %d);
                 border-radius: 7px;
-                font-size: 12px;
+                color: rgb(255, 255, 255);
+                font-size: 16px;
                 font-weight: 700;
-                padding: 3px 6px;
+                padding: 2px 5px;
                 selection-background-color: rgba(100, 145, 255, 92);
             }
             QPlainTextEdit#resultEdit {
-                background-color: rgba(255, 255, 255, %d);
+                background-color: rgba(0, 0, 0, %d);
             }
             QToolButton {
                 background-color: transparent;
